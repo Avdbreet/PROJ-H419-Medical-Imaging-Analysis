@@ -39,7 +39,8 @@ print("\n Class info distribution \n")
 
 f, ax = plt.subplots(1,1, figsize=(6,4))
 total = float(len(df_class_info))
-sns.countplot(df_class_info['class'],order = df_class_info['class'].value_counts().index, palette='Set3')
+sns.countplot(x=df_class_info['class'] ,order = df_class_info['class'].value_counts().index)#, palette='Set3')
+#sns.countplot parameters: x= define the x axis; palette is for the colors ; order is a list of strings, order to plot the categorical lebels in
 for p in ax.patches:
     height = p.get_height()
     ax.text(p.get_x()+p.get_width()/2.,
@@ -47,7 +48,6 @@ for p in ax.patches:
             '{:1.2f}%'.format(100*height/total),
             ha="center") 
 plt.show()
-
 
 #######           TRAIN LABELS         #########
 
@@ -127,7 +127,6 @@ im = dcm_data.pixel_array #Dataset.pixel_array returns a numpy.ndarray containin
 pylab.imshow(im, cmap=pylab.cm.gist_gray)
 pylab.axis('off')
 
-
 # Visualizing boxes in on images
 
 def draw(data):
@@ -175,7 +174,7 @@ def overlay_box(im, box, rgb, stroke=1): # What represent stroke?
     im[y1:y2, x2:x2 + stroke] = rgb
 
     return im
-print("\n boxing of lung opacities of patient 4 \n")
+print("\n Boxing of lung opacities of patient 4 \n")
 draw(parsed[patientId])
 
 
