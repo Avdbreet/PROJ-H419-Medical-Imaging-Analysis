@@ -34,7 +34,8 @@ import seaborn as sns
 df_class_info = pd.read_csv('/Users/Arthur/Desktop/ULB/2019-2020/Projet_Imagerie/rsna-pneumonia-detection-challenge/stage_2_detailed_class_info.csv')
 
 print("\n Class information of the first 10 patients \n")
-print(df_class_info.head(10))
+print("Columns:" + str(df_class_info.shape[0]) + " Rows:" + str(df_class_info.shape[1]))
+print(df_class_info.head(5))
 print("\n Class info distribution \n")
 
 f, ax = plt.subplots(1,1, figsize=(6,4))
