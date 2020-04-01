@@ -61,41 +61,26 @@ print('\n Head of the df_train_tot: \n')
 print(df_train_tot.head(5))
 
 #Sort training datas by classes
-print('\n Train Dataset, before and after grouping in equal amount amongst the classes \n')
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 5))
-df_train_tot.groupby('class').size().plot.bar(ax=ax1) #Pandas dataframe. groupby() function is used to split the data into groups based on some criteria
-df_train_tot = df_train_tot.groupby('class').apply(lambda x: x.sample(26100
+df_train_tot = df_train_tot.groupby('class').apply(lambda x: x.sample(26000
                                          //3, replace=False)).reset_index(drop=True)
-df_train_tot.groupby('class').size().plot.bar(ax=ax2)
-plt.show() 
-
 #Splitting the Training DataFrame into two subdataframes, for training and validation
 df_train, df_valid = train_test_split(df_train_tot, test_size=0.25, random_state=2018,
                                     stratify=df_train_tot['class'])
 
-print('Division of the training data set into a train dataset and a validaton dataset:\n ')
-print(df_train.shape, ': training data')
-print(df_valid.shape, ': validation data')
+
+#Plot of the validation and training datasets
+print('Training and Validation datasets after splitting')
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10, 5))
+df_train.groupby('class').size().plot.bar(ax=ax1)
+ax1.title.set_text('Training set') #Pandas dataframe. groupby() function is used to split the data into groups based on some criteria
+df_valid.groupby('class').size().plot.bar(ax=ax2)
+ax2.title.set_text('Validation set')
+plt.show() 
 
 
-###############################################################################
-#                           Test DataFrame                                    #
-###############################################################################
-
-df_test=pd.read_csv(base_dir + "stage_2_sample_submission.csv")
-
-#Add a column with the path, initialized with empty strings
-ar_path_test=np.array(['path' for x in range(len(df_test.iloc[:,[1]]))])
-df_test['path']=ar_path_test
-
-
-for i in range(len(df_test)):
-    Id=df_test.loc[i,'patientId']
-    path='%s.jpeg' %Id
-    df_test.loc[i,'path']= path
-
-print('Head of df_test')
-print(df_test.head(3))
+print('\nDivision of the training data set into a train dataset and a validaton dataset: ')
+print(df_train.shape[0], ': training data')
+print(df_valid.shape[0], ': validation data')
 
 
 ###############################################################################
@@ -109,13 +94,12 @@ IMG_SIZE=(128,128)
 BATCH_SIZE=32
 
 train_images_dir= base_dir+'stage_2_images_jpeg/'
-test_images_dir=base_dir+'stage_2_test_images_jpeg/'
 
 ###############################################################################
 #                          Training image generator                           #
 ###############################################################################
 
-
+#data agmentation
 image_gen_train=ImageDataGenerator(rescale=1./255., samplewise_center=False, 
                               samplewise_std_normalization=False, 
                               horizontal_flip = True, 
@@ -138,10 +122,11 @@ train_x, train_y=next(train_generator)
 print('\nOutput:')
 print(train_x.shape, train_y.shape)
 
-print('Plot of the augmented images:\n')
 
-def plotImages(images_arr):
-    fig, axes = plt.subplots(1, 5, figsize=(20,20))
+print('\nPlot of the augmented images:')
+
+def plotImages(images_arr,row=2,col=4,fig_size=(16,8)):
+    fig, axes = plt.subplots(row, col, figsize=fig_size)
     axes = axes.flatten()
     for img, ax in zip(images_arr, axes):
         ax.imshow(img)
@@ -149,7 +134,7 @@ def plotImages(images_arr):
     plt.tight_layout()
     plt.show()
 
-augmented_images = [train_generator[0][0][0] for i in range(5)]
+augmented_images = [train_generator[0][0][0] for i in range(8)]
 plotImages(augmented_images)
 
 ###############################################################################
@@ -163,23 +148,6 @@ validation_generator=image_gen_val.flow_from_dataframe(dataframe=df_valid, direc
                                                        x_col='path', y_col='class',
                                                        batch_size=BATCH_SIZE, seed=42, shuffle=True,
                                                        class_mode='categorical',target_size=IMG_SIZE)
-                                                       
-
-###############################################################################
-#                            Test image generator                             #
-###############################################################################
-
-""" To be modified """
-
-image_gen_test=image_gen_val
-
-print('\nTest Generator:')
-test_generator=image_gen_val.flow_from_dataframe(dataframe=df_test,directory=test_images_dir,
-                                                 x_col='path',
-                                                 y_col='class', shuffle=False,
-                                                 class_mode=None, target_size=IMG_SIZE)
-
-
 ###############################################################################
 #                                                                             #
 #                             DNN model building                              #
@@ -187,60 +155,61 @@ test_generator=image_gen_val.flow_from_dataframe(dataframe=df_test,directory=tes
 ###############################################################################
 
 from tensorflow.keras.layers import MaxPool2D
-from keras import optimizers
-from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, Dropout, Conv2D, LeakyReLU
+from tensorflow.keras.layers import GlobalAveragePooling2D, Dense, Dropout, Conv2D
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 
+input_shape=(128,128,3)
+kernel_size=3
+lr=1e-4
 
-#Architecture
+###############################################################################
+#                                 Architecture                                #
+###############################################################################
 model=Sequential()
 
-model.add(Conv2D(64, 3, padding='same', activation='relu', input_shape=(128,128,3)))
-model.add(Conv2D(64, 3, padding='same', activation='relu'))
+model.add(Conv2D(64, kernel_size, padding='same', activation='relu', input_shape=input_shape))
+model.add(Conv2D(64, kernel_size, padding='same', activation='relu'))
 model.add(MaxPool2D(2))
 
-model.add(Conv2D(128, 3, padding='same', activation='relu'))
-model.add(Conv2D(128, 3, padding='same', activation='relu'))
+model.add(Conv2D(128, kernel_size, padding='same', activation='relu'))
+model.add(Conv2D(128, kernel_size, padding='same', activation='relu'))
 model.add(MaxPool2D(2))
 model.add(Dropout(0.25))
 
-model.add(Conv2D(256, 3, padding='same', activation='relu'))
-model.add(Conv2D(256, 3, padding='same', activation='relu'))
-model.add(Conv2D(256, 3, padding='same', activation='relu'))
+model.add(Conv2D(256, kernel_size, padding='same', activation='relu'))
+model.add(Conv2D(256, kernel_size, padding='same', activation='relu'))
 model.add(MaxPool2D(2))
 model.add(Dropout(0.25))
 
-model.add(Conv2D(512, 3, padding='same', activation='relu'))
-model.add(Conv2D(512, 3, padding='same', activation='relu'))
-model.add(Conv2D(512, 3, padding='same', activation='relu'))
+model.add(Conv2D(512, kernel_size, padding='same', activation='relu'))
+model.add(Conv2D(512, kernel_size, padding='same', activation='relu'))
 model.add(MaxPool2D(2))
 model.add(Dropout(0.25))
-
-model.add(Conv2D(512, 3, padding='same', activation='relu'))
-model.add(Conv2D(512, 3, padding='same', activation='relu'))
-model.add(Conv2D(512, 3, padding='same', activation='relu'))
-model.add(MaxPool2D(2))
 
 model.add(GlobalAveragePooling2D())
 
 model.add(Dense(128, activation='relu'))
 model.add(Dropout(0.5))
 
-model.add(LeakyReLU(0.1))
 model.add(Dense(3, activation = 'softmax'))
 
 model.summary()
 
 
-#Compilation
-model.compile(optimizer = Adam(lr = 1e-4), loss = 'categorical_crossentropy',
+###############################################################################
+#                              Model compilation                              #
+###############################################################################
+
+model.compile(optimizer = Adam(lr = lr), loss = 'categorical_crossentropy',
                         metrics = ['categorical_accuracy'])
 
 
-#Fitting
+###############################################################################
+#                               Model fitting                                 #
+###############################################################################
 
 weight_path="{}_weights.best.hdf5".format('lung_opacity')
 
@@ -254,15 +223,12 @@ callbacks_list = [early,checkpoint]
 
 STEP_SIZE_TRAIN=train_generator.n//train_generator.batch_size
 STEP_SIZE_VALID=validation_generator.n//validation_generator.batch_size
-STEP_SIZE_TEST=test_generator.n//test_generator.batch_size
-
-""" Everything run propely until here """
 
 training=model.fit_generator(generator=train_generator,
                     steps_per_epoch=STEP_SIZE_TRAIN,
                     validation_data=validation_generator,
                     validation_steps=STEP_SIZE_VALID,
-                    epochs=20, callbacks=callbacks_list) #Crash if running
+                    epochs=40, callbacks=callbacks_list)
 
 
 ###############################################################################
@@ -280,8 +246,6 @@ val_acc = training.history['val_categorical_accuracy']
 
 loss=training.history['loss']
 val_loss=training.history['val_loss']
-epochs=15
-epochs_range = range(epochs)
 
 plt.figure(figsize=(8,8))
 plt.subplot(1, 2, 1)
@@ -301,20 +265,117 @@ plt.show()
 #                              Model Evalutaion                               #
 ###############################################################################
 
-"""To modify!"""
+"""To modify, make it more beautiful!"""
 
 model.load_weights(weight_path)
 model.save('full_model.h5')
 
+
+"""If working, delete test generator"""
+
 val_loss, val_acc=model.evaluate_generator(generator=validation_generator,
-steps=STEP_SIZE_TEST)
+steps=len(validation_generator))
 
-print('Loss:%f' %val_loss)
-print('Accuracy:%f'%val_acc)
+print('Validation Loss:%f' %val_loss)
+print('Validation Accuracy:%f'%val_acc)
 
 
-test_loss, test_acc=model.evaluate_generator(generator=test_generator,
-steps=STEP_SIZE_TEST)
+###############################################################################
+#                        Predition on validation set                          #
+###############################################################################
 
-print('Loss:%f' %test_loss)
-print('Accuracy:%f'%test_acc)
+#Input and actual output of a big sample from validation datas
+valid_x, valid_y=next(image_gen_val.flow_from_dataframe(dataframe=df_valid, directory=train_images_dir, x_col='path', y_col='class',
+                                                  seed=42, shuffle=True, target_size=IMG_SIZE,
+                                                  class_mode='categorical', batch_size=6000))
+
+#Predicted output from the model for the same  dataset
+pred_y=model.predict(valid_x,batch_size=BATCH_SIZE, verbose=True)
+
+###############################################################################
+#                            Performance measures                             #
+###############################################################################
+
+from sklearn.metrics import  classification_report, confusion_matrix
+from sklearn.metrics import roc_curve, auc
+from scipy import interp
+from itertools import cycle
+
+predicted_label=np.argmax(pred_y, axis=1)
+actual_label=np.argmax(valid_y, axis=1)
+
+#Confusion Matrix:
+c_matrix=confusion_matrix(actual_label,predicted_label)
+print('\n Confusion Matrix')
+print(c_matrix)
+plt.matshow(c_matrix)
+plt.show()
+
+#Classification report:
+print('\n Classification report')
+print(classification_report(actual_label,predicted_label, target_names=class_enc.classes_))
+
+#ROC curves
+#Compute Area Under the Receiver Operating Characteristic Curve (ROC AUC) from prediction scores.
+
+fpr=dict()
+tpr=dict()
+roc_auc=dict()
+
+n_classes=3
+for i in range(n_classes):
+    fpr[i],tpr[i],_=roc_curve(valid_y[:,i], pred_y[:,i])
+    roc_auc[i]=auc(fpr[i],tpr[i])
+
+fpr["micro"], tpr["micro"], _ = roc_curve(valid_y.ravel(), pred_y.ravel())
+roc_auc["micro"] = auc(fpr["micro"], tpr["micro"])
+
+# First aggregate all false positive rates
+all_fpr = np.unique(np.concatenate([fpr[i] for i in range(n_classes)]))
+
+# Then interpolate all ROC curves at this points
+mean_tpr = np.zeros_like(all_fpr)
+for i in range(n_classes):
+    mean_tpr += interp(all_fpr, fpr[i], tpr[i])
+
+# Finally average it and compute AUC
+mean_tpr /= n_classes
+
+# Plot all ROC curves
+print('\n ROC curves')
+plt.figure()
+lw=1.5
+plt.plot(fpr["micro"], tpr["micro"],
+         label='Average - AUC = {0:0.2f}'
+               ''.format(roc_auc["micro"]),
+         color='red', linestyle=':', linewidth=4)
+
+colors = cycle(['royalblue', 'darkorange', 'limegreen'])
+for i, color in zip(range(n_classes), colors):
+    plt.plot(fpr[i], tpr[i], color=color, lw=lw,
+             label='Class {0} - AUC = {1:0.2f}'
+             ''.format(i, roc_auc[i]))
+
+plt.plot([0, 1], [0, 1], 'k--', lw=lw, label='Random guessing')
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.legend(loc="lower right")
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
