@@ -37,7 +37,7 @@ for f in test_list:
     img_mem.save(outdir + f.replace('.dcm','.jpeg')) 
 """
 
-#Creation of the test dataframe
+#Creation of the train dataframe
 df_class=pd.read_csv(base_dir+'stage_2_detailed_class_info.csv')
 df_train_tot=pd.read_csv(base_dir+'stage_2_train_labels.csv')
 
@@ -265,13 +265,10 @@ plt.show()
 #                              Model Evalutaion                               #
 ###############################################################################
 
-"""To modify, make it more beautiful!"""
-
+#Loading bewt weighted connections
 model.load_weights(weight_path)
 model.save('full_model.h5')
 
-
-"""If working, delete test generator"""
 
 val_loss, val_acc=model.evaluate_generator(generator=validation_generator,
 steps=len(validation_generator))
